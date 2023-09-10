@@ -2,7 +2,9 @@ package com.example.springfilterkotlin
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.github.javafaker.Faker
+import com.turkraft.springfilter.builder.FilterBuilder
 import com.turkraft.springfilter.converter.FilterSpecification
+import com.turkraft.springfilter.converter.FilterSpecificationConverter
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.enums.ParameterIn
@@ -29,7 +31,9 @@ import java.io.IOException
 @RestController
 class SpringfilterKotlinApplication(
     private val industryRepository: IndustryRepository,
-    private val companyRepository: CompanyRepository
+    private val companyRepository: CompanyRepository,
+    private val filterBuilder: FilterBuilder,
+    private val filterSpecificationConverter: FilterSpecificationConverter,
 ) : CommandLineRunner {
 
     override fun run(vararg args: String?) {
@@ -57,17 +61,28 @@ class SpringfilterKotlinApplication(
         response.sendRedirect("swagger-ui.html")
     }
 
+    @Operation(parameters = [Parameter(name = "filter", `in` = ParameterIn.QUERY, schema = Schema(type = "string"), example = "industry.name:'Capital Markets'")])
+    @GetMapping(value = ["company"])
+    fun getCompanies(@Parameter(hidden = true) filter: FilterSpecification<Company?>): List<Company?> {
+        return companyRepository.findAll(filter)
+    }
+
+    @Operation(parameters = [Parameter(name = "filter", `in` = ParameterIn.QUERY, schema = Schema(type = "string"), example = "industry:Capital%20Markets'")])
+    @GetMapping(value = ["companyDto"])
+    fun getCompaniesDto(@Parameter(hidden = true) filter: String): List<Company?> {
+        // TODO transform parameter
+        val filterNode = with (filterBuilder) {
+            field("industry.name").equal(input("Capital Markets")).get()
+        }
+        val specification: FilterSpecification<Company> = filterSpecificationConverter.convert(filterNode)
+        return companyRepository.findAll(specification)
+    }
+
     @GetMapping(value = ["industry"])
     fun getIndustries(
         @Parameter(hidden = true) filter: FilterSpecification<Industry?>?
     ): MutableList<Industry?>? {
         return filter?.let { industryRepository.findAll(it) }
-    }
-
-    @Operation(parameters = [Parameter(name = "filter", `in` = ParameterIn.QUERY, schema = Schema(type = "string"), example = "id < 10 and employees is not empty")])
-    @GetMapping(value = ["company"])
-    fun getCompanies(@Parameter(hidden = true) filter: FilterSpecification<Company?>): List<Company?> {
-        return companyRepository.findAll(filter)
     }
 
     companion object {

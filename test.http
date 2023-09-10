@@ -3,3 +3,6 @@ GET http://localhost:8080/company
 
 ###
 GET http://localhost:8080/company?filter=industry.name:'Capital Markets'
+
+###
+GET http://localhost:8080/companyDto?filter=industry:Capital%20Markets
